@@ -1,85 +1,109 @@
-# React + Aleo + Leo
+# Aleo Voting dApp — React + Leo + Provable
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/fork/github/ProvableHQ/sdk/tree/mainnet/create-leo-app/template-react-leo)
+This project is a zero-knowledge voting decentralized application (dApp) built using **React**, **Leo**, and the **Aleo Testnet**. It was initialized using [ProvableHQ’s `create-leo-app` React template](https://github.com/ProvableHQ/sdk/tree/mainnet/create-leo-app/template-react-leo) and extended with a fully functioning on-chain voting contract.
 
-This template provides a minimal setup to get React and Aleo working in Webpack or Vite with HMR and some ESLint rules.
 
-This template includes a Leo program that is loaded by the web app located in
-the `helloworld` directory.
+## 📜 Contract Deployment Details
 
-### Start in development mode
+- **Program Name**: `voteuvacsprojectsp25.aleo`
+- **Deployed By**: `aleo1w7l4sx470xrl2cc6qd0wwxnfhg4ej8tfn36r8m03z84pue5lt5ps9e6frs`
+- **Deployment Endpoint**: `https://api.explorer.provable.com/v1`
+- **Transaction ID**:  
+  [`at1ys4q9lfxftsr0zc5p6gqf6tsnrrqph296tywnh5zrrqc3zvacygqr7jad9`](https://testnet.explorer.provable.com/transaction/at1ys4q9lfxftsr0zc5p6gqf6tsnrrqph296tywnh5zrrqc3zvacygqr7jad9)
+- **Address Explorer View**:  
+  [View on Provable Testnet Explorer](https://testnet.explorer.provable.com/address/aleo1w7l4sx470xrl2cc6qd0wwxnfhg4ej8tfn36r8m03z84pue5lt5ps9e6frs)
+
+
+## 📦 Development Instructions
+
+### 🔧 Start in Development Mode
 
 ```bash
+npm install
 npm run dev
 ```
 
-Your app should be running on http://localhost:5173/
+Your app should now be running at:  
+http://localhost:5173/
 
-### Build Leo program
 
-1. Copy the `helloworld/.env.example` to `helloworld/.env` (this will be ignored
-   by Git):
+### 🔨 Compile the Leo Program
 
+1. Navigate to the Leo program directory:
    ```bash
    cd helloworld
+   ```
+
+2. Copy `.env.example` to `.env` and provide your private key:
+   ```bash
    cp .env.example .env
    ```
 
-2. Replace `PRIVATE_KEY=user1PrivateKey` in the `.env` with your own key (you
-   can use an existing one or generate your own at https://provable.tools/account)
-
-3. Follow instructions to install Leo here: https://github.com/ProvableHQ/leo
-
-4. You can edit `helloworld/src/main.leo` and run `leo run` to compile and update the
-   Aleo instructions under `build` which are loaded by the web app.
-
-## Deploy program from web app
-
-> [!WARNING]
-> This is for demonstration purposes or local testing only, in production applications you
-> should avoid building a public facing web app with private key information
-
-Information on generating a private key, seeding a wallet with funds, and finding a spendable record can be found here
-if you are unfamiliar: https://docs.leo-lang.org/testnet/getting_started/deploy_execute_demo
-
-Aleo programs deployed require unique names, make sure to edit the program's name to something unique in `helloworld/src/main.leo`, `helloworld/program.json`, rename `helloworld/inputs/helloworld.in` and rebuild.
-
-1. In the `worker.js` file modify the privateKey to be an account with available
-   funds
-
-   ```js
-   // Use existing account with funds
-   const account = new Account({
-     privateKey: "user1PrivateKey",
-   });
+3. Edit the `.env` file and insert:
+   ```env
+   PRIVATE_KEY=your-private-key
+   ENDPOINT=https://api.explorer.provable.com/v1
+   NETWORK=testnet
    ```
 
-2. (Optional) Provide a fee record manually (located in commented code within `worker.js`)
+4. Build the Leo program:
+   ```bash
+   leo build
+   ```
 
-   If you do not provide a manual fee record, the SDK will attempt to scan for a record starting at the latest block. A simple way to speed this up would be to make a public transaction to this account right before deploying.
+---
 
-3. Run the web app and hit the deploy button
+### 🚀 Deploy the Program
 
-## Production deployment
+To deploy your Leo smart contract to Aleo Testnet:
 
-### Build
-
-`npm run build`
-
-Upload `dist` folder to your host of choice.
-
-### ⚠️ Header warnings
-
-`DOMException: Failed to execute 'postMessage' on 'Worker': SharedArrayBuffer transfer requires self.crossOriginIsolated`
-
-If you get a warning similar to this when deploying your application, you need
-to make sure your web server is configured with the following headers:
-
-```
-Cross-Origin-Opener-Policy: same-origin
-Cross-Origin-Embedder-Policy: require-corp
+```bash
+leo deploy --broadcast
 ```
 
-We've included a `_headers` file that works with some web hosts (e.g. Netlify)
-but depending on your host / server setup you may need to configure the headers
-manually.
+---
+
+## 🧠 Notes on Deployment
+
+Aleo programs require unique names when deployed. Ensure the program name is updated in:
+- `src/main.leo`
+- `program.json`
+- Any associated `.in` files in the `inputs/` directory
+
+This project uses the official Aleo testnet endpoint via Provable:
+```env
+ENDPOINT=https://api.explorer.provable.com/v1
+```
+
+---
+
+## ⚙️ Production Deployment
+
+```bash
+npm run build
+```
+
+Upload the `dist/` directory to a hosting provider such as Netlify or Vercel.
+
+> 🛡️ If encountering SharedArrayBuffer issues in production:
+>
+> Add the following headers to your hosting config:
+> ```
+> Cross-Origin-Opener-Policy: same-origin
+> Cross-Origin-Embedder-Policy: require-corp
+> ```
+
+---
+
+## 📚 Resources
+
+- 🔗 [Provable Explorer](https://testnet.explorer.provable.com)
+- 🔗 [Leo Language Documentation](https://docs.leo-lang.org/)
+- 🔗 [Provable SDK Template](https://github.com/ProvableHQ/sdk/tree/mainnet/create-leo-app/template-react-leo)
+
+---
+
+## 👨‍💻 Author
+
+This smart contract and voting system was developed and deployed by:  
+**`aleo1w7l4sx470xrl2cc6qd0wwxnfhg4ej8tfn36r8m03z84pue5lt5ps9e6frs`**
