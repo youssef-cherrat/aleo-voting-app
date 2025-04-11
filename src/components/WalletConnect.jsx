@@ -9,31 +9,61 @@ import {
 } from "@demox-labs/aleo-wallet-adapter-reactui";
 import { LeoWalletAdapter } from "@demox-labs/aleo-wallet-adapter-leo";
 
+// Admin address (change to yours if needed)
 const ADMIN_ADDRESS =
   "aleo1w7l4sx470xrl2cc6qd0wwxnfhg4ej8tfn36r8m03z84pue5lt5ps9e6frs";
 
-function WalletInfo() {
-  const { publicKey } = useWallet();
-  const isAdmin = publicKey === ADMIN_ADDRESS;
-
-  return (
-    <div style={{ padding: "1rem", background: "#f0f0f0", borderRadius: "8px" }}>
-      <WalletMultiButton />
-      {publicKey && (
-        <div style={{ marginTop: "1rem" }}>
-          <p>
-            <strong>Welcome:</strong> {publicKey}
-          </p>
-          {isAdmin && (
-            <p style={{ color: "green" }}>
-              <strong>You are the admin of this voting system.</strong>
-            </p>
-          )}
+  function WalletInfo() {
+    const { publicKey } = useWallet();
+    const isAdmin = publicKey === ADMIN_ADDRESS;
+  
+    return (
+      <div
+        className="card text-white bg-dark shadow-sm"
+        style={{
+          maxWidth: "700px",
+          minHeight: "520px",
+          margin: "2rem auto",
+          padding: "3rem 2rem",
+          borderRadius: "1.5rem",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        {/* Connect Wallet Button */}
+        <div className="mb-4">
+          <WalletMultiButton className="btn btn-primary" />
         </div>
-      )}
-    </div>
-  );
-}
+  
+        {/* If connected */}
+        {publicKey && (
+          <>
+            <div className="alert alert-success text-center w-100" role="alert">
+              ✅ Wallet connected successfully!
+            </div>
+  
+            <h3 className="text-light mb-3">👋 Welcome!</h3>
+  
+            {/* Aleo address under welcome */}
+            <div className="text-center small mb-3">
+                <strong className="text-white">Your address:</strong>
+                <div className="text-info text-break mt-1">{publicKey}</div>
+            </div>
+
+  
+            {isAdmin && (
+              <div className="alert alert-success text-center w-100" role="alert">
+                🛡️ <strong>You are the admin of this voting system.</strong>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
+  }
+  
 
 export default function WalletConnect() {
   return (

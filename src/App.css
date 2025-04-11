@@ -4,6 +4,9 @@
   padding: 2rem;
   text-align: center;
 }
+body {
+  background-color: #535353;
+}
 
 .logo {
   height: 6em;
@@ -39,4 +42,27 @@
 
 .read-the-docs {
   color: #888;
+}
+.wallet-adapter-dropdown-list {
+  list-style: none !important;
+  padding: 0;
+  margin: 0;
+}
+
+.wallet-adapter-dropdown-list li {
+  display: block;
+  padding: 0.5rem 1rem;
+  margin: 0.25rem 0;
+  background-color: #0d6efd;
+  color: #fff;
+  border-radius: 0.375rem;
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.wallet-adapter-dropdown-list li:hover {
+  background-color: #0b5ed7;
 }

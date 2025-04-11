@@ -17,6 +17,7 @@
     "@demox-labs/aleo-wallet-adapter-reactui": "^0.0.35",
     "@provablehq/sdk": "^0.8.8",
     "@solana/wallet-adapter-base": "^0.9.24",
+    "bootstrap": "^5.3.5",
     "comlink": "^4.4.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
