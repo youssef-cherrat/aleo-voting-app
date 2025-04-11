@@ -12,10 +12,14 @@
     "install-leo": "./install.sh"
   },
   "dependencies": {
+    "@demox-labs/aleo-wallet-adapter-leo": "^0.0.24",
+    "@demox-labs/aleo-wallet-adapter-react": "^0.0.21",
+    "@demox-labs/aleo-wallet-adapter-reactui": "^0.0.35",
     "@provablehq/sdk": "^0.8.8",
+    "@solana/wallet-adapter-base": "^0.9.24",
     "comlink": "^4.4.2",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@babel/core": "^7.26.7",
