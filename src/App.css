@@ -1,11 +1,12 @@
 #root {
-  max-width: 1280px;
+  width: 100%;
   margin: 0 auto;
   padding: 2rem;
   text-align: center;
 }
+
 body {
-  background-color: #535353;
+  background-color: #1e1e1e;
 }
 
 .logo {
@@ -43,12 +44,13 @@ body {
 .read-the-docs {
   color: #888;
 }
+
+/* Wallet Adapter Dropdown Custom Styles */
 .wallet-adapter-dropdown-list {
   list-style: none !important;
   padding: 0;
   margin: 0;
 }
-
 .wallet-adapter-dropdown-list li {
   display: block;
   padding: 0.5rem 1rem;
@@ -62,7 +64,67 @@ body {
   cursor: pointer;
   transition: background-color 0.2s ease;
 }
-
 .wallet-adapter-dropdown-list li:hover {
   background-color: #0b5ed7;
+}
+
+/* WALLET MODAL CUSTOMIZATION */
+.wallet-adapter-modal-wrapper {
+  z-index: 1055 !important;
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.6); /* Glassy overlay */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wallet-adapter-modal {
+  background-color: #1e1e1e !important;
+  border-radius: 12px !important;
+  padding: 2rem !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4) !important;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  color: #fff !important;
+  font-family: 'Inter', sans-serif;
+  animation: fadeIn 0.3s ease;
+}
+
+.wallet-adapter-modal-list {
+  padding: 0;
+}
+
+.wallet-adapter-modal-list li {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+  padding: 1rem;
+  border-radius: 8px;
+  background-color: #282c34;
+  transition: all 0.3s ease;
+}
+
+.wallet-adapter-modal-list li:hover {
+  background-color: #3a3f47;
+  transform: scale(1.02);
+  cursor: pointer;
+}
+
+/* Fade animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
