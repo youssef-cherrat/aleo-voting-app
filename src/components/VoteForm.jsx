@@ -12,7 +12,7 @@ function VoteForm() {
   const { publicKey, requestRecords, requestTransaction } = useWallet();
 
   // Your smart contract program identifier
-  const programId = "voteuvacsprojectsp25.aleo";
+  const programId = "voteuva2projectsp25.aleo";
 
   // Function to look up the proposal record on chain
   const handleFindProposal = async (e) => {

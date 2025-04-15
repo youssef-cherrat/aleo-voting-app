@@ -1,4 +1,4 @@
-program voteuvacsprojectsp25.aleo;
+program voteuva2projectsp25.aleo;
 
 struct ProposalInfo:
     title as field;
@@ -31,13 +31,16 @@ mapping disagree_votes:
     value as u64.public;
 
 function propose:
-    input r0 as ProposalInfo.public;
-    assert.eq self.caller r0.proposer;
-    hash.bhp256 r0.title into r1 as field;
-    cast self.caller r1 r0 into r2 as Proposal.record;
-    async propose r1 into r3;
-    output r2 as Proposal.record;
-    output r3 as voteuvacsprojectsp25.aleo/propose.future;
+    input r0 as field.public;
+    input r1 as field.public;
+    input r2 as address.public;
+    assert.eq self.caller r2;
+    cast r0 r1 r2 into r3 as ProposalInfo;
+    hash.bhp256 r0 into r4 as field;
+    cast self.caller r4 r3 into r5 as Proposal.record;
+    async propose r4 into r6;
+    output r5 as Proposal.record;
+    output r6 as voteuva2projectsp25.aleo/propose.future;
 
 finalize propose:
     input r0 as field.public;
@@ -49,7 +52,7 @@ function new_ticket:
     cast r1 r0 into r2 as Ticket.record;
     async new_ticket r0 into r3;
     output r2 as Ticket.record;
-    output r3 as voteuvacsprojectsp25.aleo/new_ticket.future;
+    output r3 as voteuva2projectsp25.aleo/new_ticket.future;
 
 finalize new_ticket:
     input r0 as field.public;
@@ -60,7 +63,7 @@ finalize new_ticket:
 function agree:
     input r0 as Ticket.record;
     async agree r0.pid into r1;
-    output r1 as voteuvacsprojectsp25.aleo/agree.future;
+    output r1 as voteuva2projectsp25.aleo/agree.future;
 
 finalize agree:
     input r0 as field.public;
@@ -71,7 +74,7 @@ finalize agree:
 function disagree:
     input r0 as Ticket.record;
     async disagree r0.pid into r1;
-    output r1 as voteuvacsprojectsp25.aleo/disagree.future;
+    output r1 as voteuva2projectsp25.aleo/disagree.future;
 
 finalize disagree:
     input r0 as field.public;

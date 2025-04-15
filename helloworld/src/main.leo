@@ -1,5 +1,5 @@
 // The 'vote.leo' program.
-program voteuvacsprojectsp25.aleo {
+program voteuva2projectsp25.aleo {
     // Proposal details
     struct ProposalInfo {
         title: field,
@@ -31,13 +31,23 @@ program voteuvacsprojectsp25.aleo {
     mapping disagree_votes: field => u64;
 
     // Propose a new proposal to vote on.
-    async transition propose(public info: ProposalInfo) -> (Proposal, Future) {
+    async transition propose(
+        public title: field,
+        public content: field,
+        public proposer: address
+    ) -> (Proposal, Future) {
         // Authenticate proposer.
-        assert_eq(self.caller, info.proposer);
+        assert_eq(self.caller, proposer);
+
+        // Create the ProposalInfo struct
+        let info: ProposalInfo = ProposalInfo {
+            title: title,
+            content: content,
+            proposer: proposer
+        };
 
         // Generate a new proposal id.
-        let id: field = BHP256::hash_to_field(info.title);
-
+        let id: field = BHP256::hash_to_field(title);
 
         // Return a new record for the proposal.
         // Finalize the proposal id.

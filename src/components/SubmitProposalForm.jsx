@@ -15,8 +15,8 @@ function SubmitProposalForm() {
     console.log("Wallet state:", { connected, publicKey });
   }, [connected, publicKey]);
 
-  // Your smart contract's program ID
-  const programId = "voteuvacsprojectsp25.aleo";
+  // Your smart contract's program ID - updated to the new deployed contract
+  const programId = "voteuva2projectsp25.aleo";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,40 +33,46 @@ function SubmitProposalForm() {
     setLoading(true);
     try {
       const fee = 10000; // Adjust fee as needed
-
-      // Build the ProposalInfo object (the struct defined in your Leo program).
-      const proposalInfo = {
-        title: title,
-        content: content,
-        proposer: publicKey,
-      };
-
-      // Create and send the transaction by calling the "propose" transition.
-      const tx = await requestTransaction(
-        Transaction.createTransaction(
-          publicKey,
-          WalletAdapterNetwork.Localnet, // Change network if needed (TestnetBeta/MainnetBeta)
-          programId,
-          "propose", // Transition name defined in your smart contract.
-          [proposalInfo], // Transaction arguments.
-          fee
-        )
+      
+      // With the modified Leo contract, we can pass title, content, and proposer as separate inputs
+      // This should work better with the Leo wallet adapter
+      
+      console.log("Submitting proposal with inputs:", { title, content, proposer: publicKey });
+      
+      // IMPORTANT: Build the transaction using the TestnetBeta network to match your configuration.
+      const tx = Transaction.createTransaction(
+        publicKey,
+        WalletAdapterNetwork.TestnetBeta,
+        programId,
+        "propose", // The transition name defined in your smart contract.
+        [title, content, publicKey], // Pass the inputs as separate arguments
+        fee
       );
-      console.log("Proposal submitted:", tx);
-      alert("Proposal submission sent: " + tx.transactionId);
 
-      // Clear form inputs after successful submission.
+      console.log("Created transaction:", tx);
+      if (!tx) {
+        throw new Error("Transaction creation failed; received undefined value.");
+      }
+
+      // Send the transaction by calling requestTransaction.
+      console.log("Sending transaction...");
+      const result = await requestTransaction(tx);
+      console.log("Proposal submitted:", result);
+      alert("Proposal submission sent: " + result.transactionId);
+
+      // Clear form inputs upon successful submission.
       setTitle("");
       setContent("");
     } catch (err) {
-      console.error(err);
-      alert("Error submitting proposal: " + err.message);
+      console.error("Error details:", err);
+      console.error("Error stack:", err.stack);
+      alert("Error submitting proposal: " + (err.message || "Unknown error"));
     }
     setLoading(false);
   };
 
   return (
-    <div className="mt-5 pt-5">
+    <div className="mt-5 pt-5" id="submit-section">
       <h2 className="text-white mb-4">Submit Proposal</h2>
       <form onSubmit={handleSubmit}>
         <div className="mb-3">
