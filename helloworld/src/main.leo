@@ -1,5 +1,5 @@
 // The 'vote.leo' program.
-program voteuva2projectsp25.aleo {
+program voteuva3projectsp25.aleo {
     // Proposal details
     struct ProposalInfo {
         title: field,

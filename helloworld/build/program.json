@@ -1,6 +1,6 @@
 {
-    "program": "voteuva2projectsp25.aleo",
+    "program": "voteuva3projectsp25.aleo",
     "version": "0.0.0",
-    "description": "",
+    "description": "Voting contract for UVA CS SP25 personal project",
     "license": "MIT"
 }
