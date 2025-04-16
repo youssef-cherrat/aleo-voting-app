@@ -2,70 +2,81 @@ import React, { useState, useEffect } from "react";
 import { useWallet } from "@demox-labs/aleo-wallet-adapter-react";
 import { Transaction, WalletAdapterNetwork } from "@demox-labs/aleo-wallet-adapter-base";
 
+// Two‑way encoding: string → encrypted field (with XOR key) → reversible
+function encodeToField(str, key) {
+  const textBytes = new TextEncoder().encode(str);
+  const keyBytes  = new TextEncoder().encode(key);
+
+  const encrypted = textBytes.map((b, i) => b ^ keyBytes[i % keyBytes.length]);
+  const hex = [...encrypted]
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+
+  return BigInt("0x" + hex).toString() + "field";
+}
+
+// Decode field → encrypted bytes → XOR with key → original string
+function decodeFromField(fieldStr, key) {
+  const hex = BigInt(fieldStr.replace(/field$/, ""))
+    .toString(16)
+    .padStart(fieldStr.length * 2, "0");
+  const encrypted = new Uint8Array(hex.match(/.{1,2}/g).map(h => parseInt(h, 16)));
+  const keyBytes  = new TextEncoder().encode(key);
+
+  const decrypted = encrypted.map((b, i) => b ^ keyBytes[i % keyBytes.length]);
+  return new TextDecoder().decode(decrypted);
+}
+
 function SubmitProposalForm() {
-  const [title, setTitle] = useState("");
+  const [title, setTitle]     = useState("");
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
+  const passphrase            = "jja3em"; // your secret key
 
-  // Retrieve wallet state; note the additional 'connected' flag.
   const { publicKey, connected, requestTransaction } = useWallet();
 
-  // Debug: log wallet connection status and publicKey for troubleshooting.
   useEffect(() => {
     console.log("Wallet state:", { connected, publicKey });
   }, [connected, publicKey]);
 
-  // Your smart contract's program ID - updated to the new deployed contract
   const programId = "voteuva2projectsp25.aleo";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!connected)  { alert("Connect your wallet first."); return; }
+    if (!title || !content) { alert("Please fill in all fields."); return; }
 
-    // Check connection status using the connected flag
-    if (!connected) {
-      alert("Connect your wallet first.");
-      return;
-    }
-    if (!title || !content) {
-      alert("Please fill in all fields.");
-      return;
-    }
     setLoading(true);
     try {
-      const fee = 10000; // Adjust fee as needed
-      
-      // With the modified Leo contract, we can pass title, content, and proposer as separate inputs
-      // This should work better with the Leo wallet adapter
-      
-      console.log("Submitting proposal with inputs:", { title, content, proposer: publicKey });
-      
-      // IMPORTANT: Build the transaction using the TestnetBeta network to match your configuration.
-      const tx = Transaction.createTransaction(
+      const titleField   = encodeToField(title,   passphrase);
+      const contentField = encodeToField(content, passphrase);
+
+      console.log("Encrypted fields:", { titleField, contentField });
+
+      const tx = await Transaction.createTransaction(
         publicKey,
         WalletAdapterNetwork.TestnetBeta,
         programId,
-        "propose", // The transition name defined in your smart contract.
-        [title, content, publicKey], // Pass the inputs as separate arguments
-        fee
+        "propose",
+        [titleField, contentField, publicKey],
+        40000,
+        false
       );
 
-      console.log("Created transaction:", tx);
-      if (!tx) {
-        throw new Error("Transaction creation failed; received undefined value.");
-      }
-
-      // Send the transaction by calling requestTransaction.
-      console.log("Sending transaction...");
+      console.log("Transaction created:", tx);
       const result = await requestTransaction(tx);
       console.log("Proposal submitted:", result);
-      alert("Proposal submission sent: " + result.transactionId);
 
-      // Clear form inputs upon successful submission.
+      // Example of decoding for verification:
+      // console.log("decoded title:", decodeFromField(titleField, passphrase));
+      // console.log("decoded content:", decodeFromField(contentField, passphrase));
+
+      alert("Proposal submitted! Transaction ID: " + result.transactionId);
+
       setTitle("");
       setContent("");
     } catch (err) {
-      console.error("Error details:", err);
-      console.error("Error stack:", err.stack);
+      console.error("Submission error:", err);
       alert("Error submitting proposal: " + (err.message || "Unknown error"));
     }
     setLoading(false);
@@ -111,3 +122,7 @@ function SubmitProposalForm() {
 }
 
 export default SubmitProposalForm;
+export {
+  encodeToField,
+  decodeFromField
+};
