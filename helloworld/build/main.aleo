@@ -14,6 +14,11 @@ record Ticket:
     owner as address.private;
     pid as field.private;
 
+record Vote:
+    owner as address.private;
+    pid as field.private;
+    vote as u64.private;
+
 mapping proposals:
     key as field.public;
     value as ProposalInfo.public;
@@ -62,8 +67,10 @@ finalize new_ticket:
 
 function agree:
     input r0 as Ticket.record;
-    async agree r0.pid into r1;
-    output r1 as voteuva2projectsp25.aleo/agree.future;
+    cast r0.owner r0.pid 1u64 into r1 as Vote.record;
+    async agree r0.pid into r2;
+    output r1 as Vote.record;
+    output r2 as voteuva2projectsp25.aleo/agree.future;
 
 finalize agree:
     input r0 as field.public;
@@ -73,8 +80,10 @@ finalize agree:
 
 function disagree:
     input r0 as Ticket.record;
-    async disagree r0.pid into r1;
-    output r1 as voteuva2projectsp25.aleo/disagree.future;
+    cast r0.owner r0.pid 0u64 into r1 as Vote.record;
+    async disagree r0.pid into r2;
+    output r1 as Vote.record;
+    output r2 as voteuva2projectsp25.aleo/disagree.future;
 
 finalize disagree:
     input r0 as field.public;

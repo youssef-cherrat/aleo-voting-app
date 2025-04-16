@@ -30,6 +30,13 @@ program voteuva2projectsp25.aleo {
 
     mapping disagree_votes: field => u64;
 
+    // A record to emit each time someone votes
+    record Vote {
+        owner: address,
+        pid: field,
+        vote: u64,   // 1 = agree, 0 = disagree
+    }
+
     // Propose a new proposal to vote on.
     async transition propose(
         public title: field,
@@ -63,7 +70,6 @@ program voteuva2projectsp25.aleo {
         public pid: field,
         public voter: address,
     ) -> (Ticket, Future) {
-
         // Finalize the proposal id for the ticket.
         return (Ticket { owner: voter, pid }, finalize_new_ticket(pid));
     }
@@ -74,9 +80,12 @@ program voteuva2projectsp25.aleo {
     }
 
     // Vote privately to agree with a proposal.
-    async transition agree(ticket: Ticket) -> Future {
-        // Finalize this vote.
-        return finalize_agree(ticket.pid);
+    async transition agree(ticket: Ticket) -> (Vote, Future) {
+        // Emit a Vote record, then bump the agree_votes mapping.
+        return (
+            Vote { owner: ticket.owner, pid: ticket.pid, vote: 1u64 },
+            finalize_agree(ticket.pid)
+        );
     }
     async function finalize_agree(public pid: field) {
         // Publicly increment the number of agree votes.
@@ -85,11 +94,14 @@ program voteuva2projectsp25.aleo {
     }
 
     // Vote privately to disagree with a proposal.
-    async transition disagree(ticket: Ticket) -> Future {
-        // Finalize this vote.
-        return finalize_disagree(ticket.pid);
+    async transition disagree(ticket: Ticket) -> (Vote, Future) {
+        // Emit a Vote record, then bump the disagree_votes mapping.
+        return (
+            Vote { owner: ticket.owner, pid: ticket.pid, vote: 0u64 },
+            finalize_disagree(ticket.pid)
+        );
     }
-    async function finalize_disagree(pid: field) {
+    async function finalize_disagree(public pid: field) {
         // Publicly increment the number of disagree votes.
         let current: u64 = Mapping::get_or_use(disagree_votes, pid, 0u64);
         Mapping::set(disagree_votes, pid, current + 1u64);
