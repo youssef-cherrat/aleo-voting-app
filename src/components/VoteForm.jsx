@@ -1,185 +1,199 @@
 import React, { useState } from "react";
 import { useWallet } from "@demox-labs/aleo-wallet-adapter-react";
 import { Transaction, WalletAdapterNetwork } from "@demox-labs/aleo-wallet-adapter-base";
+import { decodeFromField } from "../utils/fieldEncoding.js"; // or your correct path
 
-function VoteForm() {
-  const [proposalID, setProposalID] = useState("");
-  const [proposalData, setProposalData] = useState(null);
-  const [voteType, setVoteType] = useState("agree");
-  const [loading, setLoading] = useState(false);
+export default function VoteForm() {
+  const { publicKey, connected, requestRecords, requestTransaction } = useWallet();
+  const [proposals, setProposals]       = useState([]);
+  const [selectedId, setSelectedId]     = useState("");
+  const [selectedProposal, setSelectedProposal] = useState(null);
+  const [voteType, setVoteType]         = useState("agree");
+  const [loadingProposals, setLoadingProposals] = useState(false);
+  const [loadingVote, setLoadingVote]   = useState(false);
 
-  // Use methods from the wallet adapter hook
-  const { publicKey, requestRecords, requestTransaction } = useWallet();
+  const passphrase  = "jja3em";
+  const programId   = "voteuva2projectsp25.aleo";
 
-  // Your smart contract program identifier
-  const programId = "voteuva2projectsp25.aleo";
-
-  // Function to look up the proposal record on chain
-  const handleFindProposal = async (e) => {
-    e.preventDefault();
-    if (!proposalID) {
-      alert("Proposal ID is required.");
-      return;
-    }
-    if (!requestRecords) {
-      alert("read function is not available.");
-      return;
-    }
-    setLoading(true);
+  // Step 1: On “Find Proposals”, fetch & decode
+  const handleLoadProposals = async () => {
+    if (!requestRecords) return alert("Read function not available.");
+    setLoadingProposals(true);
     try {
-      // Request all records for your program.
-      // (Your proposals mapping is stored publicly; adjust the filtering if your records structure differs.)
-      const records = await requestRecords(programId);
-      // Attempt to find a record whose id matches the entered proposalID.
-      // (Ensure that your record structure contains an 'id' field that reflects your proposal IDs.)
-      const foundProposal = records.find((record) => record.id === proposalID);
-
-      if (foundProposal) {
-        setProposalData(foundProposal);
-        alert("Proposal found!");
-      } else {
-        alert("Proposal not found.");
-        setProposalData(null);
-      }
+      const recs = await requestRecords(programId);
+      const list = recs
+        .filter(r => r.recordName === "Proposal")
+        .map(r => {
+          // r.data.id is like "…field.private"
+          const rawId        = r.data.id.replace(/\.private$/, "");  // "…field"
+          const numericId    = rawId.replace(/field$/, "");          // digits only
+          const title        = decodeFromField(r.data.info.title,   passphrase);
+          const content      = decodeFromField(r.data.info.content, passphrase);
+          return { id: numericId, title, content };
+        });
+      setProposals(list);
+      if (!list.length) alert("No proposals found on‑chain.");
     } catch (err) {
-      console.error(err);
-      alert("Error fetching proposal: " + err.message);
-      setProposalData(null);
+      console.error("Failed to load proposals:", err);
+      alert("Error loading proposals: " + err.message);
     }
-    setLoading(false);
+    setLoadingProposals(false);
   };
 
-  // Function to create a ticket and submit a vote transaction on chain
+  // Step 2: User picks one
+  const handleSelect = (e) => {
+    const id = e.target.value;
+    setSelectedId(id);
+    setSelectedProposal(proposals.find(p => p.id === id) || null);
+  };
+
+  // Step 3: Issue ticket → fetch real Ticket → agree/disagree
   const handleVote = async (e) => {
     e.preventDefault();
-    if (!publicKey) return alert("Connect your wallet first.");
-    if (!proposalID) return alert("Proposal ID is required.");
-    if (!proposalData) return alert("Please find the proposal first.");
+    if (!connected)         return alert("Connect your wallet first.");
+    if (!selectedProposal)  return alert("Please choose a proposal.");
+    setLoadingVote(true);
 
-    setLoading(true);
     try {
-      // Convert the proposalID to a field representation.
-      // Adjust this conversion based on your app’s requirements.
-      const pidField = proposalID + "field";
-      const fee = 10000; // Adjust fee as needed
+      // Build field strings
+      const pidField         = selectedId + "field";          // "digitsfield"
+      const pidFieldPrivate  = pidField + ".private";        // "digitsfield.private"
+      const fee              = 10000;
 
-      // === Step 1: Issue a new ticket by invoking `new_ticket` transition ===
-      // The new_ticket transition requires two parameters: the proposal id (as a field) and the voter's address.
-      const ticketTx = await requestTransaction(
+      // 3.1) Create ticket
+      await requestTransaction(
         Transaction.createTransaction(
           publicKey,
-          WalletAdapterNetwork.Localnet, // Change if using a different network (e.g. TestnetBeta)
+          WalletAdapterNetwork.TestnetBeta,
           programId,
           "new_ticket",
           [pidField, publicKey],
-          fee
+          fee,
+          false
         )
       );
-      console.log("Ticket creation transaction submitted:", ticketTx);
 
-      // === Step 2: Cast the vote using the ticket ===
-      // For the voting transition (agree/disagree), we pass a ticket record.
-      // Here we simulate the ticket record as an object that matches your smart contract's Ticket record.
-      const ticketRecord = { owner: publicKey, pid: pidField };
+      // 3.2) Fetch the actual Ticket record
+      const recs2 = await requestRecords(programId);
+      const ticketRecord = recs2.find(r =>
+        r.recordName === "Ticket" &&
+        r.owner      === publicKey &&
+        r.data.pid   === pidFieldPrivate
+      );
+      if (!ticketRecord) throw new Error("Ticket record not found");
+
+      // 3.3) Cast the vote
       const voteTx = await requestTransaction(
         Transaction.createTransaction(
           publicKey,
-          WalletAdapterNetwork.Localnet,
+          WalletAdapterNetwork.TestnetBeta,
           programId,
-          voteType, // Either "agree" or "disagree"
-          [ticketRecord],
-          fee
+          voteType,           // "agree" or "disagree"
+          [ticketRecord],     // pass the real record object
+          fee,
+          false
         )
       );
-      console.log("Vote transaction submitted:", voteTx);
-      alert("✅ Vote transaction sent: " + voteTx.transactionId);
+
+      alert("✅ Vote sent! Tx ID: " + voteTx.transactionId);
     } catch (err) {
-      console.error(err);
-      alert("❌ Error voting: " + err.message);
+      console.error("Error voting:", err);
+      alert("Error voting: " + err.message);
     }
-    setLoading(false);
+
+    setLoadingVote(false);
   };
 
   return (
     <div id="vote-section" className="mt-5 pt-5">
       <h2 className="text-white mb-4">Vote on Proposal</h2>
 
-      {/* Proposal lookup form */}
-      <form onSubmit={handleFindProposal}>
-        <div className="mb-3">
-          <label htmlFor="proposalID" className="form-label text-white">
-            Proposal ID
-          </label>
-          <input
-            type="text"
-            className="form-control"
-            id="proposalID"
-            placeholder="Enter proposal title hash"
-            value={proposalID}
-            onChange={(e) => setProposalID(e.target.value)}
-            required
-          />
-        </div>
-        <button className="btn btn-secondary" type="submit" disabled={loading}>
-          {loading ? "Searching..." : "Find Proposal"}
+      {/* Find Proposals Button */}
+      <div className="mb-3">
+        <button
+          className="btn btn-secondary"
+          onClick={handleLoadProposals}
+          disabled={loadingProposals}
+        >
+          {loadingProposals
+            ? <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" />
+                Loading…
+              </>
+            : "Find Proposals"}
         </button>
-      </form>
+      </div>
 
-      {/* If a proposal is found, display its details and reveal the vote form */}
-      {proposalData && (
-        <div className="mt-4">
-          <h3 className="text-white">Proposal Found:</h3>
-          <p className="text-white">
-            <strong>ID:</strong> {proposalData.id || "(No ID)"}
-          </p>
-          {/* Adjust below fields based on the structure of your ProposalInfo */}
-          <p className="text-white">
-            <strong>Title:</strong> {proposalData.title || "(No title)"}
-          </p>
-          <p className="text-white">
-            <strong>Content:</strong> {proposalData.content || "(No content)"}
-          </p>
+      {/* Dropdown (once loaded) */}
+      {proposals.length > 0 && (
+        <div className="mb-3">
+          <label htmlFor="proposalSelect" className="form-label text-white">
+            Select a Proposal
+          </label>
+          <select
+            id="proposalSelect"
+            className="form-select"
+            value={selectedId}
+            onChange={handleSelect}
+          >
+            <option value="" disabled>— Choose one —</option>
+            {proposals.map(p => (
+              <option key={p.id} value={p.id}>{p.title}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Details & Vote Form */}
+      {selectedProposal && (
+        <>
+          <div className="mb-4 text-white">
+            <h3>Proposal Details</h3>
+            <p><strong>ID:</strong> {selectedProposal.id}</p>
+            <p><strong>Title:</strong> {selectedProposal.title}</p>
+            <p><strong>Content:</strong> {selectedProposal.content}</p>
+          </div>
 
           <form onSubmit={handleVote}>
             <div className="mb-3 text-white">
-              <label className="form-label">Select your vote</label>
+              <label className="form-label">Your Vote</label>
               <div className="form-check">
                 <input
+                  id="agree"
                   className="form-check-input"
                   type="radio"
-                  id="agree"
                   name="voteType"
                   value="agree"
                   checked={voteType === "agree"}
                   onChange={() => setVoteType("agree")}
                 />
-                <label className="form-check-label" htmlFor="agree">
-                  Agree
-                </label>
+                <label htmlFor="agree" className="form-check-label">Agree</label>
               </div>
               <div className="form-check">
                 <input
+                  id="disagree"
                   className="form-check-input"
                   type="radio"
-                  id="disagree"
                   name="voteType"
                   value="disagree"
                   checked={voteType === "disagree"}
                   onChange={() => setVoteType("disagree")}
                 />
-                <label className="form-check-label" htmlFor="disagree">
-                  Disagree
-                </label>
+                <label htmlFor="disagree" className="form-check-label">Disagree</label>
               </div>
             </div>
-            <button className="btn btn-primary" type="submit" disabled={loading}>
-              {loading ? "Submitting..." : "Submit Vote"}
+
+            <button className="btn btn-primary" type="submit" disabled={loadingVote}>
+              {loadingVote
+                ? <>
+                    <span className="spinner-border spinner-border-sm me-2" role="status" />
+                    Submitting Vote…
+                  </>
+                : "Submit Vote"}
             </button>
           </form>
-        </div>
+        </>
       )}
     </div>
   );
 }
-
-export default VoteForm;

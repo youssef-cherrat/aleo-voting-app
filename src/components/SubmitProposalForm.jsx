@@ -1,58 +1,40 @@
 import React, { useState, useEffect } from "react";
 import { useWallet } from "@demox-labs/aleo-wallet-adapter-react";
 import { Transaction, WalletAdapterNetwork } from "@demox-labs/aleo-wallet-adapter-base";
-
-// Two‑way encoding: string → encrypted field (with XOR key) → reversible
-function encodeToField(str, key) {
-  const textBytes = new TextEncoder().encode(str);
-  const keyBytes  = new TextEncoder().encode(key);
-
-  const encrypted = textBytes.map((b, i) => b ^ keyBytes[i % keyBytes.length]);
-  const hex = [...encrypted]
-    .map(b => b.toString(16).padStart(2, "0"))
-    .join("");
-
-  return BigInt("0x" + hex).toString() + "field";
-}
-
-// Decode field → encrypted bytes → XOR with key → original string
-function decodeFromField(fieldStr, key) {
-  const hex = BigInt(fieldStr.replace(/field$/, ""))
-    .toString(16)
-    .padStart(fieldStr.length * 2, "0");
-  const encrypted = new Uint8Array(hex.match(/.{1,2}/g).map(h => parseInt(h, 16)));
-  const keyBytes  = new TextEncoder().encode(key);
-
-  const decrypted = encrypted.map((b, i) => b ^ keyBytes[i % keyBytes.length]);
-  return new TextDecoder().decode(decrypted);
-}
+import { encodeToField, decodeFromField } from "../utils/fieldEncoding.js";
 
 function SubmitProposalForm() {
-  const [title, setTitle]     = useState("");
-  const [content, setContent] = useState("");
-  const [loading, setLoading] = useState(false);
-  const passphrase            = "jja3em"; // your secret key
+  const [title, setTitle]       = useState("");
+  const [content, setContent]   = useState("");
+  const [loading, setLoading]   = useState(false);
+  const [newProposalID, setNewProposalID] = useState("");
+  const passphrase              = "jja3em";
 
-  const { publicKey, connected, requestTransaction } = useWallet();
+  const {
+    publicKey,
+    connected,
+    requestTransaction,
+    requestRecords       // ← grab this too
+  } = useWallet();
+
+  const programId = "voteuva2projectsp25.aleo";
 
   useEffect(() => {
     console.log("Wallet state:", { connected, publicKey });
   }, [connected, publicKey]);
 
-  const programId = "voteuva2projectsp25.aleo";
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!connected)  { alert("Connect your wallet first."); return; }
+    if (!connected)         { alert("Connect your wallet first."); return; }
     if (!title || !content) { alert("Please fill in all fields."); return; }
 
     setLoading(true);
     try {
+      // encrypt to field
       const titleField   = encodeToField(title,   passphrase);
       const contentField = encodeToField(content, passphrase);
 
-      console.log("Encrypted fields:", { titleField, contentField });
-
+      // submit the tx
       const tx = await Transaction.createTransaction(
         publicKey,
         WalletAdapterNetwork.TestnetBeta,
@@ -62,22 +44,31 @@ function SubmitProposalForm() {
         40000,
         false
       );
+      await requestTransaction(tx);
 
-      console.log("Transaction created:", tx);
-      const result = await requestTransaction(tx);
-      console.log("Proposal submitted:", result);
+      // now fetch public Proposal records
+      const records = await requestRecords(programId);
+      const ours = records.find(r =>
+        r.recordName === "Proposal"
+        && r.owner === publicKey
+        && r.data.info.title   === titleField
+        && r.data.info.content === contentField
+      );
 
-      // Example of decoding for verification:
-      // console.log("decoded title:", decodeFromField(titleField, passphrase));
-      // console.log("decoded content:", decodeFromField(contentField, passphrase));
-
-      alert("Proposal submitted! Transaction ID: " + result.transactionId);
+      if (ours) {
+        // strip off ".private"
+        const onChainID = ours.data.id.replace(/\.private$/, "");
+        setNewProposalID(onChainID);
+        alert("✅ Proposal created! On‑chain ID:\n" + onChainID);
+      } else {
+        console.warn("Proposal record not found in public state yet.");
+      }
 
       setTitle("");
       setContent("");
     } catch (err) {
-      console.error("Submission error:", err);
-      alert("Error submitting proposal: " + (err.message || "Unknown error"));
+      console.error(err);
+      alert("Error submitting proposal: " + err.message);
     }
     setLoading(false);
   };
@@ -91,9 +82,8 @@ function SubmitProposalForm() {
             Proposal Title
           </label>
           <input
-            type="text"
-            className="form-control"
             id="proposalTitle"
+            className="form-control"
             placeholder="Enter proposal title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -105,8 +95,8 @@ function SubmitProposalForm() {
             Proposal Content
           </label>
           <textarea
-            className="form-control"
             id="proposalContent"
+            className="form-control"
             placeholder="Enter proposal content"
             value={content}
             onChange={(e) => setContent(e.target.value)}
@@ -117,12 +107,15 @@ function SubmitProposalForm() {
           {loading ? "Submitting..." : "Submit Proposal"}
         </button>
       </form>
+
+      {newProposalID && (
+        <p className="text-white mt-3">
+          🆔 Your Proposal ID:<br/>
+          <code>{newProposalID}</code>
+        </p>
+      )}
     </div>
   );
 }
 
 export default SubmitProposalForm;
-export {
-  encodeToField,
-  decodeFromField
-};
