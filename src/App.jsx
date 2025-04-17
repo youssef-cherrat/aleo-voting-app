@@ -1,14 +1,14 @@
+// src/App.jsx
 import React, { useMemo } from "react";
 import WalletConnect from "./components/WalletConnect";
 import VoteForm from "./components/VoteForm";
 import SubmitProposalForm from "./components/SubmitProposalForm";
-// import ResultsView from "./components/ResultsView";
+import ResultsView from "./components/ResultsView";        // ← uncommented!
 import Navbar from "./components/Navbar";
 import aleoLogo from "./assets/aleo.svg";
 import reactLogo from "./assets/react.svg";
 import "./App.css";
 
-// Import wallet provider modules and adapter configuration
 import { WalletProvider } from "@demox-labs/aleo-wallet-adapter-react";
 import { WalletModalProvider } from "@demox-labs/aleo-wallet-adapter-reactui";
 import { LeoWalletAdapter } from "@demox-labs/aleo-wallet-adapter-leo";
@@ -22,9 +22,7 @@ function App() {
 
   // Initialize wallet adapter(s) using useMemo so they're not recreated on every render
   const wallets = useMemo(() => [
-    new LeoWalletAdapter({
-      appName: "Aleo Voting dApp"
-    })
+    new LeoWalletAdapter({ appName: "Aleo Voting dApp" })
   ], []);
 
   return (
@@ -85,7 +83,8 @@ function App() {
                 {/* Sections */}
                 <VoteForm />
                 <SubmitProposalForm />
-                {/* <ResultsView /> */}
+                <ResultsView />
+
               </div>
             </div>
           </div>

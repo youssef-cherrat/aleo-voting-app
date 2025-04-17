@@ -4,23 +4,25 @@ import { decodeFromField } from "../utils/fieldEncoding.js";
 
 export default function ResultsView() {
   const { publicKey, connected, requestRecords } = useWallet();
-  const [loading, setLoading]                   = useState(false);
-  const [results, setResults]                   = useState([]);
-  const [error, setError]                       = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState([]);
+  const [error, setError]     = useState(null);
 
   const passphrase = "jja3em";
-  const programId  = "voteuva2projectsp25.aleo";
+  const programId  = "voteuva3projectsp25.aleo";
 
   useEffect(() => {
     if (!connected) return;
+
     async function loadResults() {
       setLoading(true);
       setError(null);
+
       try {
-        // 1) Fetch all on‑chain records
+        // 1) pull down all Proposal, Ticket & Results records
         const recs = await requestRecords(programId);
 
-        // 2) Decode all proposals
+        // 2) decode all proposals
         const proposals = recs
           .filter(r => r.recordName === "Proposal")
           .map(r => {
@@ -31,43 +33,39 @@ export default function ResultsView() {
             return { id: numericId, title, content };
           });
 
-        // 3) Find the proposals you hold tickets for
+        // 3) gather your ticket‑eligible IDs
         const ticketIds = recs
           .filter(r => r.recordName === "Ticket" && r.owner === publicKey)
           .map(r => {
-            const rawPid = r.data.pid.replace(/\.private$/, "");
-            return rawPid.replace(/field$/, "");
+            let pid = r.data.pid.replace(/\.private$/, "");
+            if (pid.endsWith("field")) pid = pid.slice(0, -5);
+            return pid;
           });
 
-        // 4) Build a list of ticketed proposals
-        const ticketed = proposals.filter(p => ticketIds.includes(p.id));
+        // 4) pick out only the Results records you emitted
+        const resultsList = recs
+          .filter(r =>
+            r.recordName === "Results" &&
+            ticketIds.includes(
+              r.data.id.replace(/\.private$/, "").replace(/field$/, "")
+            )
+          )
+          .map(r => {
+            const rawId     = r.data.id.replace(/\.private$/, "");
+            const numericId = rawId.replace(/field$/, "");
+            const prop      = proposals.find(p => p.id === numericId) || {};
+            return {
+              id:        numericId,
+              title:     prop.title,
+              content:   prop.content,
+              agree:     Number(r.data.agrees),
+              disagree:  Number(r.data.disagrees),
+            };
+          });
 
-        // 5) For each, fetch agree/disagree counts from the explorer API
-        const withCounts = await Promise.all(ticketed.map(async (p) => {
-          const key = p.id + "field";
-          // agree votes
-          const agreeResp = await fetch(
-            `https://api.explorer.provable.com/v1/mapping/${programId}/agree_votes/${key}`
-          );
-          const agreeJson = await agreeResp.json();
-          const agree     = agreeJson.data.value ?? 0;
-          // disagree votes
-          const disagreeResp = await fetch(
-            `https://api.explorer.provable.com/v1/mapping/${programId}/disagree_votes/${key}`
-          );
-          const disagreeJson = await disagreeResp.json();
-          const disagree     = disagreeJson.data.value ?? 0;
-
-          return {
-            ...p,
-            agree,
-            disagree
-          };
-        }));
-
-        setResults(withCounts);
+        setResults(resultsList);
       } catch (e) {
-        console.error("ResultsView load error:", e);
+        console.error("❌ [ResultsView] loadResults error:", e);
         setError(e.message);
       } finally {
         setLoading(false);
@@ -82,7 +80,7 @@ export default function ResultsView() {
       <h2 className="text-white mb-4">Proposal Results</h2>
 
       {loading && <p className="text-white">Loading results…</p>}
-      {error && <p className="text-danger">Error: {error}</p>}
+      {error   && <p className="text-danger">Error: {error}</p>}
 
       {!loading && !error && results.length === 0 && (
         <p className="text-white">(You have no tickets or no proposals found.)</p>
@@ -99,7 +97,7 @@ export default function ResultsView() {
             </tr>
           </thead>
           <tbody>
-            {results.map((r) => (
+            {results.map(r => (
               <tr key={r.id}>
                 <td>{r.title}</td>
                 <td>{r.content}</td>
@@ -113,4 +111,3 @@ export default function ResultsView() {
     </div>
   );
 }
-
