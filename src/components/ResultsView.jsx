@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useWallet } from "@demox-labs/aleo-wallet-adapter-react";
 import { decodeFromField } from "../utils/fieldEncoding.js";
 
@@ -6,84 +6,101 @@ export default function ResultsView() {
   const { publicKey, connected, requestRecords } = useWallet();
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState([]);
-  const [error, setError]     = useState(null);
+  const [error,   setError]   = useState(null);
 
   const passphrase = "jja3em";
   const programId  = "voteuva3projectsp25.aleo";
 
-  useEffect(() => {
-    if (!connected) return;
-
-    async function loadResults() {
-      setLoading(true);
-      setError(null);
-
-      try {
-        // 1) pull down all Proposal, Ticket & Results records
-        const recs = await requestRecords(programId);
-
-        // 2) decode all proposals
-        const proposals = recs
-          .filter(r => r.recordName === "Proposal")
-          .map(r => {
-            const rawId     = r.data.id.replace(/\.private$/, "");
-            const numericId = rawId.replace(/field$/, "");
-            const title     = decodeFromField(r.data.info.title,   passphrase);
-            const content   = decodeFromField(r.data.info.content, passphrase);
-            return { id: numericId, title, content };
-          });
-
-        // 3) gather your ticket‑eligible IDs
-        const ticketIds = recs
-          .filter(r => r.recordName === "Ticket" && r.owner === publicKey)
-          .map(r => {
-            let pid = r.data.pid.replace(/\.private$/, "");
-            if (pid.endsWith("field")) pid = pid.slice(0, -5);
-            return pid;
-          });
-
-        // 4) pick out only the Results records you emitted
-        const resultsList = recs
-          .filter(r =>
-            r.recordName === "Results" &&
-            ticketIds.includes(
-              r.data.id.replace(/\.private$/, "").replace(/field$/, "")
-            )
-          )
-          .map(r => {
-            const rawId     = r.data.id.replace(/\.private$/, "");
-            const numericId = rawId.replace(/field$/, "");
-            const prop      = proposals.find(p => p.id === numericId) || {};
-            return {
-              id:        numericId,
-              title:     prop.title,
-              content:   prop.content,
-              agree:     Number(r.data.agrees),
-              disagree:  Number(r.data.disagrees),
-            };
-          });
-
-        setResults(resultsList);
-      } catch (e) {
-        console.error("❌ [ResultsView] loadResults error:", e);
-        setError(e.message);
-      } finally {
-        setLoading(false);
-      }
+  // ------------------------------------------------------------
+  // Pull records on‑demand instead of automatically
+  // ------------------------------------------------------------
+  const handleRefresh = async () => {
+    if (!connected) {
+      setError("Connect your wallet first.");
+      return;
     }
 
-    loadResults();
-  }, [connected, publicKey, requestRecords]);
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Fetch every record tied to the program
+      const recs = await requestRecords(programId);
+
+      // Decode all proposals
+      const proposals = recs
+        .filter(r => r.recordName === "Proposal")
+        .map(r => {
+          const id = r.data.id                    // "...field.private"
+            .replace(/\.private$/, "")
+            .replace(/field$/, "");
+
+          return {
+            id,
+            title:   decodeFromField(r.data.info.title,   passphrase),
+            content: decodeFromField(r.data.info.content, passphrase),
+          };
+        });
+
+      // Tally votes (1 = agree, 0 = disagree)
+      const tally = {};
+      recs
+        .filter(r => r.recordName === "Vote")
+        .forEach(v => {
+          const pid = v.data.pid
+            .replace(/\.private$/, "")
+            .replace(/field$/, "");
+
+          const agree = String(v.data.vote).startsWith("1");
+          if (!tally[pid]) tally[pid] = { agree: 0, disagree: 0 };
+          agree ? tally[pid].agree++ : tally[pid].disagree++;
+        });
+
+      // Merge tally back onto proposals
+      const resultsList = proposals.map(p => ({
+        ...p,
+        agree:    tally[p.id]?.agree    ?? 0,
+        disagree: tally[p.id]?.disagree ?? 0,
+      }));
+
+      setResults(resultsList);
+    } catch (e) {
+      console.error("[ResultsView] loadResults error:", e);
+      setError(e.message || "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div id="results-section" className="mt-5 pt-5">
       <h2 className="text-white mb-4">Proposal Results</h2>
 
-      {loading && <p className="text-white">Loading results…</p>}
-      {error   && <p className="text-danger">Error: {error}</p>}
+      <button
+        className="btn btn-primary mb-3"
+        onClick={handleRefresh}
+        disabled={loading || !connected}
+      >
+        {loading ? (
+          <>
+            <span
+              className="spinner-border spinner-border-sm me-2"
+              role="status"
+              aria-hidden="true"
+            />
+            Loading…
+          </>
+        ) : (
+          "Refresh Results"
+        )}
+      </button>
+
+      {error && <p className="text-danger">Error: {error}</p>}
 
       {!loading && !error && results.length === 0 && (
-        <p className="text-white">(You have no tickets or no proposals found.)</p>
+        <p className="text-white">
+          (No proposals or votes found for this wallet.)
+        </p>
       )}
 
       {!loading && !error && results.length > 0 && (
