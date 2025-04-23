@@ -17,7 +17,7 @@ function SubmitProposalForm() {
     requestRecords       // ← grab this too
   } = useWallet();
 
-  const programId = "voteuva2projectsp25.aleo";
+  const programId = "voteuva4232025.aleo";
 
   useEffect(() => {
     console.log("Wallet state:", { connected, publicKey });

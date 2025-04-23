@@ -9,7 +9,7 @@ export default function ResultsView() {
   const [error, setError]                       = useState(null);
 
   const passphrase = "jja3em";
-  const programId  = "voteuva2projectsp25.aleo";
+  const programId  = "voteuva4232025.aleo";
 
   useEffect(() => {
     if (!connected) return;

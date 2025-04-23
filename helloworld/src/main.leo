@@ -1,109 +1,103 @@
-// The 'vote.leo' program.
-program voteuva3projectsp25.aleo {
-    // Proposal details
+program voteuva4232025.aleo {
+    // — Data Structures —
     struct ProposalInfo {
-        title: field,
-        content: field,
+        title:    field,
+        content:  field,
         proposer: address,
     }
 
-    // Proposal record records proposal info publicly
     record Proposal {
         owner: address,
-        id: field,
-        info: ProposalInfo,
+        id:    field,
+        info:  ProposalInfo,
     }
 
-    // Save proposal info in public storage.
-    mapping proposals: field => ProposalInfo;
-
-    // Privacy tickets to vote
     record Ticket {
         owner: address,
-        pid: field,
+        pid:   field,
     }
 
-    // Count the total tickets issued for each proposal
-    mapping tickets: field => u64;
-
-    mapping agree_votes: field => u64;
-
-    mapping disagree_votes: field => u64;
-
-    // A record to emit each time someone votes
     record Vote {
         owner: address,
-        pid: field,
-        vote: u64,   // 1 = agree, 0 = disagree
+        pid:   field,
+        vote:  u64,
     }
 
-    // Propose a new proposal to vote on.
+    // — Public Mappings —
+    mapping proposals:      field => ProposalInfo;
+    mapping tickets:        field => u64;
+    mapping agree_votes:    field => u64;
+    mapping disagree_votes: field => u64;
+
+    // — Transitions —
+
     async transition propose(
-        public title: field,
-        public content: field,
+        public title:    field,
+        public content:  field,
         public proposer: address
     ) -> (Proposal, Future) {
-        // Authenticate proposer.
         assert_eq(self.caller, proposer);
 
-        // Create the ProposalInfo struct
         let info: ProposalInfo = ProposalInfo {
-            title: title,
-            content: content,
+            title:    title,
+            content:  content,
             proposer: proposer
         };
 
-        // Generate a new proposal id.
-        let id: field = BHP256::hash_to_field(title);
+        let id: field = title; // Use the title as the unique key
 
-        // Return a new record for the proposal.
-        // Finalize the proposal id.
-        return (Proposal { owner: self.caller, id, info }, finalize_propose(id));
-    }
-    // Create a new proposal in the "tickets" mapping.
-    async function finalize_propose(public id: field) {
-        Mapping::set(tickets, id, 0u64);
+        return (
+            Proposal { owner: proposer, id, info },
+            finalize_propose(id, info)
+        );
     }
 
-    // Create a new ticket to vote with.
+    async function finalize_propose(
+        public id:   field,
+        public info: ProposalInfo
+    ) {
+        Mapping::set(proposals,      id, info);
+        Mapping::set(tickets,        id, 0u64);
+        Mapping::set(agree_votes,    id, 0u64);
+        Mapping::set(disagree_votes, id, 0u64);
+    }
+
     async transition new_ticket(
-        public pid: field,
-        public voter: address,
+        public pid:   field,
+        public voter: address
     ) -> (Ticket, Future) {
-        // Finalize the proposal id for the ticket.
-        return (Ticket { owner: voter, pid }, finalize_new_ticket(pid));
-    }
-    // Create a new ticket on a proposal in the "tickets" mapping.
-    async function finalize_new_ticket(public pid: field) {
-        let current: u64 = Mapping::get_or_use(tickets, pid, 0u64);
-        Mapping::set(tickets, pid, current + 1u64);
+        return (
+            Ticket { owner: voter, pid },
+            finalize_new_ticket(pid)
+        );
     }
 
-    // Vote privately to agree with a proposal.
+    async function finalize_new_ticket(public pid: field) {
+        let n: u64 = Mapping::get_or_use(tickets, pid, 0u64);
+        Mapping::set(tickets, pid, n + 1u64);
+    }
+
     async transition agree(ticket: Ticket) -> (Vote, Future) {
-        // Emit a Vote record, then bump the agree_votes mapping.
         return (
             Vote { owner: ticket.owner, pid: ticket.pid, vote: 1u64 },
             finalize_agree(ticket.pid)
         );
     }
+
     async function finalize_agree(public pid: field) {
-        // Publicly increment the number of agree votes.
-        let current: u64 = Mapping::get_or_use(agree_votes, pid, 0u64);
-        Mapping::set(agree_votes, pid, current + 1u64);
+        let n: u64 = Mapping::get_or_use(agree_votes, pid, 0u64);
+        Mapping::set(agree_votes, pid, n + 1u64);
     }
 
-    // Vote privately to disagree with a proposal.
     async transition disagree(ticket: Ticket) -> (Vote, Future) {
-        // Emit a Vote record, then bump the disagree_votes mapping.
         return (
             Vote { owner: ticket.owner, pid: ticket.pid, vote: 0u64 },
             finalize_disagree(ticket.pid)
         );
     }
+
     async function finalize_disagree(public pid: field) {
-        // Publicly increment the number of disagree votes.
-        let current: u64 = Mapping::get_or_use(disagree_votes, pid, 0u64);
-        Mapping::set(disagree_votes, pid, current + 1u64);
+        let n: u64 = Mapping::get_or_use(disagree_votes, pid, 0u64);
+        Mapping::set(disagree_votes, pid, n + 1u64);
     }
 }
