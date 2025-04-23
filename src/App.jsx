@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import WalletConnect from "./components/WalletConnect";
 import VoteForm from "./components/VoteForm";
 import SubmitProposalForm from "./components/SubmitProposalForm";
-// import ResultsView from "./components/ResultsView";
+import ResultsView from "./components/ResultsView";
 import Navbar from "./components/Navbar";
 import aleoLogo from "./assets/aleo.svg";
 import reactLogo from "./assets/react.svg";
@@ -85,7 +85,7 @@ function App() {
                 {/* Sections */}
                 <VoteForm />
                 <SubmitProposalForm />
-                {/* <ResultsView /> */}
+                <ResultsView />
               </div>
             </div>
           </div>
