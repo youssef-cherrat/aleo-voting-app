@@ -121,7 +121,6 @@ function SubmitProposalForm() {
 
   return (
     <div className="mt-5 pt-5" id="submit-section">
-      <h2 className="text-white mb-4">Submit Proposal</h2>
       <form onSubmit={handleSubmit}>
         <div className="mb-3">
           <label htmlFor="proposalTitle" className="form-label text-white">
