@@ -1,4 +1,8 @@
 import React, { useMemo, useEffect } from "react";
+import { useWallet, WalletProvider } from "@demox-labs/aleo-wallet-adapter-react";
+import { WalletModalProvider } from "@demox-labs/aleo-wallet-adapter-reactui";
+import { LeoWalletAdapter } from "@demox-labs/aleo-wallet-adapter-leo";
+
 import WalletConnect from "./components/WalletConnect";
 import VoteForm from "./components/VoteForm";
 import SubmitProposalForm from "./components/SubmitProposalForm";
@@ -8,9 +12,6 @@ import aleoLogo from "./assets/aleo.svg";
 import reactLogo from "./assets/react.svg";
 import "./App.css";
 
-import { WalletProvider, useWallet } from "@demox-labs/aleo-wallet-adapter-react";
-import { WalletModalProvider } from "@demox-labs/aleo-wallet-adapter-reactui";
-import { LeoWalletAdapter } from "@demox-labs/aleo-wallet-adapter-leo";
 import { DecryptPermission, WalletAdapterNetwork } from "@demox-labs/aleo-wallet-adapter-base";
 
 // Admin address
@@ -33,10 +34,15 @@ function Content({ scrollTo }) {
       <section id="submit-section" className="mt-5">
         <h2 className="text-white mb-4">Submit Proposal</h2>
         {isAdmin ? (
-          <SubmitProposalForm />
+          <>
+            <div className="alert alert-success text-center w-100" role="alert">
+              🛡️ <strong>You are admin and can submit proposals.</strong>
+            </div>
+            <SubmitProposalForm />
+          </>
         ) : (
-          <div className="alert alert-danger">
-            You are not admin and cannot submit proposals.
+          <div className="alert alert-danger text-center w-100" role="alert">
+            ⚠️ You are not admin and cannot submit proposals.
           </div>
         )}
       </section>
