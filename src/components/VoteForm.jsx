@@ -1,240 +1,165 @@
-// src/components/VoteForm.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useWallet } from "@demox-labs/aleo-wallet-adapter-react";
 import { Transaction, WalletAdapterNetwork } from "@demox-labs/aleo-wallet-adapter-base";
-import { decodeFromField } from "../utils/fieldEncoding.js";
+import { encodeToField, decodeFromField } from "../utils/fieldEncoding.js";
 
 export default function VoteForm() {
   const { publicKey, connected, requestRecords, requestTransaction } = useWallet();
-
-  const [proposals, setProposals]       = useState([]);
-  const [ticketIds, setTicketIds]       = useState([]); 
-  const [loading, setLoading]           = useState(false);
-
-  // For submitting a ticket
-  const [selectedToTicket, setSelectedToTicket] = useState("");
-
-  // For casting a vote
-  const [selectedToVote, setSelectedToVote]     = useState("");
-  const [voteType, setVoteType]                 = useState("agree");
-  const [voting, setVoting]                     = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [ticketInput, setTicketInput] = useState("");
+  const [voteInput, setVoteInput] = useState("");
+  const [voteType, setVoteType] = useState("agree");
+  const [ticketIds, setTicketIds] = useState([]);
+  const [proposals, setProposals] = useState([]);
 
   const passphrase = "jja3em";
-  const programId  = "voteuva4232025.aleo";
-  const fee        = 40000;   // microcredits
+  const programId = "voteuva4232025.aleo";
+  const baseUrl = "https://api.explorer.provable.com/v1/testnet";
+  const fee = 100000;
 
-  // Load both proposals & your tickets
-  const loadData = async () => {
-    if (!requestRecords) return alert("Read function not available");
-    setLoading(true);
+  const loadTickets = async () => {
+    if (!requestRecords) return;
     try {
       const recs = await requestRecords(programId);
-
-      // Decode all proposals
-      const allProposals = recs
-        .filter(r => r.recordName === "Proposal")
-        .map(r => {
-          const rawId     = r.data.id.replace(/\.private$/, "");
-          const numericId = rawId.replace(/field$/, "");
-          return {
-            id:      numericId,
-            title:   decodeFromField(r.data.info.title,   passphrase),
-            content: decodeFromField(r.data.info.content, passphrase),
-          };
-        });
-
-      // Gather all ticket IDs you own
       const yours = recs
         .filter(r => r.recordName === "Ticket" && r.owner === publicKey)
-        .map(r => {
-          const rawPid     = r.data.pid.replace(/\.private$/, "");
-          return rawPid.replace(/field$/, "");
-        });
-
-      setProposals(allProposals);
+        .map(r => r.data.pid.replace(/\.private$/, '').replace(/field$/, ''));
       setTicketIds(yours);
-    } catch (err) {
-      console.error("Load data error:", err);
-      alert("Error loading data: " + err.message);
-    } finally {
-      setLoading(false);
+    } catch (e) {
+      console.error("Error loading tickets:", e);
     }
   };
 
-  // Submit a ticket for a chosen proposal
+  useEffect(() => {
+    if (connected) loadTickets();
+  }, [connected]);
+
   const handleSubmitTicket = async () => {
     if (!connected) return alert("Please connect your wallet.");
-    if (!selectedToTicket) return alert("Choose a proposal to ticket.");
-
+    if (!ticketInput) return alert("Enter a proposal title.");
+    setLoading(true);
+    setError(null);
     try {
-      const pidField = selectedToTicket + "field";
+      const encoded = encodeToField(ticketInput, passphrase);
+      const key = encoded;
+      const url = `${baseUrl}/program/${programId}/mapping/proposals/${key}`;
+      console.log("Checking proposal existence at:", url);
+      const resp = await fetch(url);
+      const text = await resp.text();
+      let exists;
+      try { exists = JSON.parse(text); } catch { exists = text; }
+      if (!exists || exists === 'null') {
+        throw new Error("Proposal not found");
+      }
       const tx = Transaction.createTransaction(
         publicKey,
         WalletAdapterNetwork.TestnetBeta,
         programId,
         "new_ticket",
-        [pidField, publicKey],
+        [key, publicKey],
         fee,
         false
       );
       await requestTransaction(tx);
       alert("✅ Ticket submitted!");
-      // reload so ticketIds updates
-      await loadData();
-    } catch (err) {
-      console.error("Submit ticket error:", err);
-      alert("Error submitting ticket: " + err.message);
+      setTicketInput("");
+      await loadTickets();
+    } catch (e) {
+      console.error("Submit ticket error:", e);
+      setError(e.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Cast your vote using an existing ticket
   const handleCastVote = async () => {
     if (!connected) return alert("Please connect your wallet.");
-    if (!selectedToVote) return alert("Choose a ticketed proposal first.");
-    if (!ticketIds.includes(selectedToVote)) {
-      return alert("You must submit a ticket for that proposal first.");
-    }
-
-    setVoting(true);
+    if (!voteInput) return alert("Enter a proposal title to vote.");
+    setLoading(true);
+    setError(null);
     try {
-      const pidFieldPrivate = selectedToVote + "field.private";
+      const encoded = encodeToField(voteInput, passphrase);
+      const pid = encoded.replace(/field$/, '');
+      if (!ticketIds.includes(pid)) {
+        return alert("You must submit a ticket for that proposal first.");
+      }
       const recs = await requestRecords(programId);
-      const ticketRecord = recs.find(r =>
-        r.recordName === "Ticket" &&
-        r.owner      === publicKey &&
-        r.data.pid   === pidFieldPrivate
-      );
-      if (!ticketRecord) throw new Error("Ticket record not found on‑chain");
-
+      const pidPrivate = pid + "field.private";
+      const ticketRecord = recs.find(r => r.recordName === "Ticket" && r.owner === publicKey && r.data.pid === pidPrivate);
+      if (!ticketRecord) throw new Error("Ticket record not found on-chain");
       const tx = Transaction.createTransaction(
         publicKey,
         WalletAdapterNetwork.TestnetBeta,
         programId,
-        voteType,           // "agree" or "disagree"
+        voteType,
         [ticketRecord],
         fee,
         false
       );
       await requestTransaction(tx);
       alert("✅ Vote cast successfully!");
-    } catch (err) {
-      console.error("Vote error:", err);
-      alert("Error casting vote: " + err.message);
+      setVoteInput("");
+    } catch (e) {
+      console.error("Vote error:", e);
+      setError(e.message);
     } finally {
-      setVoting(false);
+      setLoading(false);
     }
   };
-
-  // Split into two lists
-  const availableToTicket = proposals.filter(p => !ticketIds.includes(p.id));
-  const ticketedProposals = proposals.filter(p => ticketIds.includes(p.id));
-
-  // Find the proposal object for voting
-  const proposalToVote = proposals.find(p => p.id === selectedToVote);
 
   return (
     <div id="vote-section" className="mt-5 pt-5">
       <h2 className="text-white mb-4">Ticket & Vote</h2>
 
-      {/* Load data */}
-      <button
-        className="btn btn-secondary mb-4"
-        onClick={loadData}
-        disabled={loading}
-      >
-        {loading ? "Loading…" : "Refresh Proposals & Tickets"}
-      </button>
+      {error && <p className="text-danger">Error: {error}</p>}
 
-      {/* Submit Ticket */}
-      <h3 className="text-white">Submit a Ticket</h3>
-      {availableToTicket.length ? (
-        <div className="mb-3">
-          <select
-            className="form-select"
-            value={selectedToTicket}
-            onChange={e => setSelectedToTicket(e.target.value)}
-          >
-            <option value="" disabled>— Choose proposal —</option>
-            {availableToTicket.map(p => (
-              <option key={p.id} value={p.id}>
-                {p.title}
-              </option>
-            ))}
-          </select>
-          <button
-            className="btn btn-primary mt-2"
-            onClick={handleSubmitTicket}
-          >
-            Submit Ticket
-          </button>
+      <div className="mb-4">
+        <h3 className="text-white">Submit a Ticket by Title</h3>
+        <input
+          type="text"
+          className="form-control"
+          placeholder="Enter proposal title"
+          value={ticketInput}
+          onChange={e => setTicketInput(e.target.value)}
+        />
+        <button className="btn btn-primary mt-2" onClick={handleSubmitTicket} disabled={loading}>
+          {loading ? "Submitting…" : "Submit Ticket"}
+        </button>
+      </div>
+
+      <div className="mb-4">
+        <h3 className="text-white">Cast a Vote by Title</h3>
+        <input
+          type="text"
+          className="form-control"
+          placeholder="Enter proposal title"
+          value={voteInput}
+          onChange={e => setVoteInput(e.target.value)}
+        />
+        <div className="form-check form-check-inline text-white mt-2">
+          <input id="agree" className="form-check-input" type="radio" name="voteType" value="agree" checked={voteType === "agree"} onChange={() => setVoteType("agree")} />
+          <label htmlFor="agree" className="form-check-label">Agree</label>
         </div>
-      ) : (
-        <p className="text-white">No proposals available to ticket.</p>
-      )}
-
-      {/* Cast Vote */}
-      <h3 className="text-white mt-5">
-        Already have a ticket? Cast Your Vote!{" "}
-      </h3>
-      {ticketedProposals.length ? (
-        <div className="mb-3">
-          <select
-            className="form-select"
-            value={selectedToVote}
-            onChange={e => setSelectedToVote(e.target.value)}
-          >
-            <option value="" disabled>— Choose ticketed proposal —</option>
-            {ticketedProposals.map(p => (
-              <option key={p.id} value={p.id}>
-                {p.title}
-              </option>
-            ))}
-          </select>
-
-          {/* Show content */}
-          {proposalToVote && (
-            <div className="mt-3 mb-3 text-white">
-              <p><strong>Title:</strong> {proposalToVote.title}</p>
-              <p><strong>Content:</strong> {proposalToVote.content}</p>
-            </div>
-          )}
-
-          <div className="form-check mt-2 text-white">
-            <input
-              id="agree"
-              className="form-check-input"
-              type="radio"
-              name="voteType"
-              value="agree"
-              checked={voteType === "agree"}
-              onChange={() => setVoteType("agree")}
-            />
-            <label htmlFor="agree" className="form-check-label">Agree</label>
-          </div>
-          <div className="form-check text-white">
-            <input
-              id="disagree"
-              className="form-check-input"
-              type="radio"
-              name="voteType"
-              value="disagree"
-              checked={voteType === "disagree"}
-              onChange={() => setVoteType("disagree")}
-            />
-            <label htmlFor="disagree" className="form-check-label">Disagree</label>
-          </div>
-
-          <button
-            className="btn btn-success mt-2"
-            onClick={handleCastVote}
-            disabled={voting}
-          >
-            {voting ? "Casting…" : "Cast Vote"}
-          </button>
+        <div className="form-check form-check-inline text-white mt-2">
+          <input id="disagree" className="form-check-input" type="radio" name="voteType" value="disagree" checked={voteType === "disagree"} onChange={() => setVoteType("disagree")} />
+          <label htmlFor="disagree" className="form-check-label">Disagree</label>
         </div>
-      ) : (
-        <p className="text-white">You haven’t submitted tickets yet.</p>
-      )}
+        <button className="btn btn-success mt-2" onClick={handleCastVote} disabled={loading}>
+          {loading ? "Casting…" : "Cast Vote"}
+        </button>
+      </div>
+
+      <div className="text-white">
+        <h4>Your Tickets</h4>
+        {ticketIds.length ? (
+          <ul>
+            {ticketIds.map(id => <li key={id}>{id}</li>)}
+          </ul>
+        ) : (
+          <p>No tickets submitted yet.</p>
+        )}
+      </div>
     </div>
   );
 }
