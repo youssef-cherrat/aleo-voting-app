@@ -1,13 +1,41 @@
+/* App.css */
+
+/* 1. Gray background on the body so it's “under” everything */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #1e1e1e;
+}
+
+/* 2. #root becomes transparent and sits above the canvas */
 #root {
   width: 100%;
   margin: 0 auto;
   padding: 2rem;
   text-align: center;
+
+  /* make it a stacking context above the canvas */
+  position: relative;
+  z-index: 1;
+
+  /* no background here anymore */
+  background: transparent;
 }
 
-body {
-  background-color: #1e1e1e;
+/* 3. Particles canvas fixed, full-screen, under your UI (#root) */
+.tsparticles-canvas-el {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  width: 100vw  !important;
+  height: 100vh !important;
+  pointer-events: none;
+
+  /* sit between the body background and the #root content */
+  z-index: 0 !important;
 }
+
+/* — your existing styles after this — */
 
 .logo {
   height: 6em;
@@ -23,12 +51,8 @@ body {
 }
 
 @keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -76,7 +100,7 @@ body {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.6); /* Glassy overlay */
+  background-color: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -110,14 +134,12 @@ body {
   background-color: #282c34;
   transition: all 0.3s ease;
 }
-
 .wallet-adapter-modal-list li:hover {
   background-color: #3a3f47;
   transform: scale(1.02);
   cursor: pointer;
 }
 
-/* Fade animation */
 @keyframes fadeIn {
   from {
     opacity: 0;
