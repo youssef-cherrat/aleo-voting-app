@@ -16,7 +16,7 @@ export default function VoteForm() {
   const passphrase = "jja3em";
   const programId = "voteuva4232025.aleo";
   const baseUrl = "https://api.explorer.provable.com/v1/testnet";
-  const fee = 100000;
+  const fee = 600000;
 
   const loadTickets = async () => {
     if (!requestRecords) return;
